@@ -1,0 +1,60 @@
+{
+  "name": "icecream-js",
+  "version": "0.1.0",
+  "description": "Zero-config debugging helper inspired by python-icecream, tuned for Node.js.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/alex/icecream-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alex/icecream-js/issues"
+  },
+  "homepage": "https://github.com/alex/icecream-js#readme",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "prepare": "bun run build",
+    "test": "bun test"
+  },
+  "keywords": [
+    "debug",
+    "logging",
+    "icecream",
+    "developer-experience"
+  ],
+  "author": "Alex",
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/parser": "^7.28.5",
+    "@babel/traverse": "^7.28.5",
+    "@babel/types": "^7.28.5",
+    "@types/bun": "latest",
+    "@types/node": "^24.10.1",
+    "tsup": "^8.1.0",
+    "typescript": "^5.6.2"
+  },
+  "dependencies": {
+    "source-map-js": "^1.2.1"
+  }
+}
