@@ -28,7 +28,7 @@ describe("py-example parity", () => {
   test("matches the Python icecream sample output order and labels", () => {
     const segments = runPyExample();
 
-    expect(segments.length).toBe(8);
+    expect(segments.length).toBe(9);
 
     expect(segments[0]).toBe("ic| 'Hello from example 1'");
     expect(segments[1]).toBe("ic| x: 42");
@@ -36,11 +36,12 @@ describe("py-example parity", () => {
 
     expect(segments[3]).toMatch(/ic\| example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
 
-    expect(segments[4]).toBe("ic| example_1: [Function: example_1]");
-    expect(segments[5]).toBe("ic| example_4: [Function: example_4]");
+    expect(segments[4]).toMatch(/ic\| error: Error: division by zero/);
+    expect(segments[5]).toBe("ic| example_1: [Function: example_1]");
+    expect(segments[6]).toBe("ic| example_4: [Function: example_4]");
 
-    expect(segments[6]).toMatch(/ic\| example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
+    expect(segments[7]).toMatch(/ic\| example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
 
-    expect(segments[7]).toBe("ic| example_4(10): undefined");
+    expect(segments[8]).toBe("ic| example_4(10): undefined");
   });
 });

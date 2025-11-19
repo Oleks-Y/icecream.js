@@ -117,6 +117,19 @@ describe("ic()", () => {
     expect(logLine2).toBe("ic| b: 3");
   });
 
+  test("returns tuples of arguments unchanged", async () => {
+    const foo = { foo: 1 };
+    const bar = { bar: 2 };
+
+    const logPromise = captureNextIcLog();
+    const [first, second] = ic(foo, bar);
+    const logLine = stripAnsi(await logPromise);
+
+    expect(first).toBe(foo);
+    expect(second).toBe(bar);
+    expect(logLine).toBe("ic| foo: { foo: 1 }, bar: { bar: 2 }");
+  });
+
   test("can be disabled to prevent logging", async () => {
     toggledIc.disable();
 
