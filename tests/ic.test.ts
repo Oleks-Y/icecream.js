@@ -1,12 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { ic } from "../src/ic";
-
-type IcFn = typeof ic & {
-  enable: () => void;
-  disable: () => void;
-};
-
-const toggledIc = ic as IcFn;
+import { disable, enable, ic } from "../src";
 
 function stripAnsi(input: string): string {
   return input.replace(/\u001B\[[0-9;]*m/g, "");
@@ -35,7 +28,7 @@ function captureNextIcLog(): Promise<string> {
 
 describe("ic()", () => {
   beforeEach(() => {
-    toggledIc.enable();
+    enable();
   });
 
   test("prints literal values without stripping them as labels", async () => {
@@ -131,7 +124,7 @@ describe("ic()", () => {
   });
 
   test("can be disabled to prevent logging", async () => {
-    toggledIc.disable();
+    disable();
 
     let logged = false;
     const originalLog = console.log;
@@ -144,7 +137,7 @@ describe("ic()", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
     console.log = originalLog;
-    toggledIc.enable();
+    enable();
 
     expect(logged).toBe(false);
   });

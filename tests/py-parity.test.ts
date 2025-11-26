@@ -18,10 +18,10 @@ function runPyExample(): string[] {
   const lines = stripAnsi(result.stdout.toString()).trim().split(/\r?\n/);
   return lines
     .map((line) => {
-      const idx = line.indexOf("ic| ");
+      const idx = line.indexOf("🐍 ");
       return idx >= 0 ? line.slice(idx) : line;
     })
-    .filter((line) => line.startsWith("ic|"));
+    .filter((line) => line.startsWith("🐍"));
 }
 
 describe("py-example parity", () => {
@@ -30,18 +30,18 @@ describe("py-example parity", () => {
 
     expect(segments.length).toBe(9);
 
-    expect(segments[0]).toBe("ic| 'Hello from example 1'");
-    expect(segments[1]).toBe("ic| x: 42");
-    expect(segments[2]).toBe("ic| data: { a: 1, b: 2 }");
+    expect(segments[0]).toBe("🐍 example/py-example.ts:9 in example_1()- 'Hello from example 1'");
+    expect(segments[1]).toBe("🐍 example/py-example.ts:14 in example_2()- x: 42");
+    expect(segments[2]).toBe("🐍 example/py-example.ts:19 in example_3()- data: { a: 1, b: 2 }");
 
-    expect(segments[3]).toMatch(/ic\| example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
+    expect(segments[3]).toMatch(/🐍 example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
 
-    expect(segments[4]).toMatch(/ic\| error: Error: division by zero/);
-    expect(segments[5]).toBe("ic| example_1: [Function: example_1]");
-    expect(segments[6]).toBe("ic| example_4: [Function: example_4]");
+    expect(segments[4]).toMatch(/🐍 example\/py-example\.ts:\d+ in example_5\(\)- error: Error: division by zero/);
+    expect(segments[5]).toBe("🐍 example/py-example.ts:42 in ()- example_1: [Function: example_1]");
+    expect(segments[6]).toBe("🐍 example/py-example.ts:43 in ()- example_4: [Function: example_4]");
 
-    expect(segments[7]).toMatch(/ic\| example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
+    expect(segments[7]).toMatch(/🐍 example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
 
-    expect(segments[8]).toBe("ic| example_4(10): undefined");
+    expect(segments[8]).toBe("🐍 example/py-example.ts:44 in ()- example_4(10): undefined");
   });
 });
