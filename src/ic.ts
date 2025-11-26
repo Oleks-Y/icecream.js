@@ -1,6 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { CallerPos, OriginalPos } from "./types";
+import type {
+  CallerPos,
+  OriginalPos,
+  IcConfiguration,
+  PrefixFunction,
+  OutputFunction,
+  ArgToStringFunction,
+} from "./types";
 import { getCaller, isNode } from "./stack";
 import { originalPosition } from "./sourcemap";
 import { getCallExpressionArgs } from "./callsite";
@@ -13,6 +20,11 @@ function ts() {
 }
 
 function inspectValue(v: unknown): string {
+  if (v instanceof Error) {
+    const name = v.name || "Error";
+    const message = v.message || "";
+    return message ? `${name}: ${message}` : name;
+  }
   try {
     if (isNode) {
       // Lazy require so this file stays browser-safe
@@ -55,6 +67,17 @@ export function shortenBrowserPath(file?: string) {
 let enabled = true;
 let logQueue: Promise<void> = Promise.resolve();
 
+// Default configuration
+const defaultConfig: IcConfiguration = {
+  prefix: "ic| ",
+  outputFunction: (s: string) => console.log(s),
+  argToStringFunction: inspectValue,
+  includeContext: false,
+  contextAbsPath: false,
+};
+
+let config: IcConfiguration = { ...defaultConfig };
+
 function findProjectRoot(startDir = process.cwd()): string {
   let dir = startDir;
   while (dir !== path.parse(dir).root) {
@@ -66,8 +89,9 @@ function findProjectRoot(startDir = process.cwd()): string {
 
 export const PROJECT_ROOT = findProjectRoot();
 
-function shortenPath(file?: string): string {
+function shortenPath(file?: string, useAbsPath = false): string {
   if (!file) return "";
+  if (useAbsPath) return file; // Return absolute path if requested
   if (isNode) {
     const rel = path.relative(PROJECT_ROOT, file);
     // if outside project (e.g., node_modules), keep basename
@@ -139,11 +163,52 @@ function enqueueLog(task: () => Promise<void> | void) {
     .catch(() => undefined);
 }
 
+function formatContext(pos: OriginalPos, fnName?: string): string {
+  const shortFile = shortenPath(pos.file, config.contextAbsPath);
+  const linePart = pos.line
+    ? `${shortFile || pos.file}:${pos.line}`
+    : shortFile || pos.file || "<unknown>";
+  const fnPart = fnName ?? "<anonymous>";
+  return `${linePart} in ${fnPart}()`;
+}
+
 function formatNoArgLocation(pos: OriginalPos, fnName?: string): string {
-  const shortFile = shortenPath(pos.file);
+  if (config.includeContext) {
+    return `${formatContext(pos, fnName)} at ${ts()}`;
+  }
+  const shortFile = shortenPath(pos.file, config.contextAbsPath);
   const linePart = pos.line ? `${shortFile || pos.file}:${pos.line}` : shortFile;
   const fnPart = fnName ?? "<anonymous>";
   return `${linePart ?? "<unknown>"} in ${fnPart}() at ${ts()}`;
+}
+
+async function formatOutput(
+  pos: OriginalPos,
+  workArgs: unknown[],
+  explicitLabel: string | null
+): Promise<string> {
+  const prefix =
+    typeof config.prefix === "function" ? config.prefix() : config.prefix;
+  const contextPart = config.includeContext
+    ? `${formatContext(pos, pos.fn)}- `
+    : "";
+
+  if (workArgs.length === 0) {
+    return `${prefix}${formatNoArgLocation(pos, pos.fn)}`;
+  }
+
+  const labels = await resolveExpressionLabels(
+    pos,
+    workArgs.length,
+    Boolean(explicitLabel)
+  );
+  const entries = workArgs.map((value, idx) => {
+    const label =
+      idx === 0 && explicitLabel ? explicitLabel : labels[idx] ?? null;
+    const valueString = config.argToStringFunction(value);
+    return formatEntry(label, valueString);
+  });
+  return `${prefix}${contextPart}${entries.join(", ")}`;
 }
 
 /**
@@ -170,31 +235,60 @@ export function ic<T extends unknown[]>(
   enqueueLog(async () => {
     const pos = await originalPosition(genPos);
     if (!pos.fn && genPos.fn) pos.fn = genPos.fn;
-    if (workArgs.length === 0) {
-      console.log(`ic| ${formatNoArgLocation(pos, pos.fn)}`);
-      return;
-    }
-
-    const labels = await resolveExpressionLabels(
-      pos,
-      workArgs.length,
-      Boolean(explicitLabel)
-    );
-    const entries = workArgs.map((value, idx) => {
-      const label =
-        idx === 0 && explicitLabel ? explicitLabel : labels[idx] ?? null;
-      const valueString = inspectValue(value);
-      return formatEntry(label, valueString);
-    });
-    console.log(`ic| ${entries.join(", ")}`);
+    const output = await formatOutput(pos, workArgs, explicitLabel);
+    config.outputFunction(output);
   });
 
   return ret;
 }
 
-(ic as any).enable = () => {
+export const enable = () => {
   enabled = true;
 };
-(ic as any).disable = () => {
+export const disable = () => {
   enabled = false;
 };
+
+/**
+ * Configure ic()'s output behavior
+ */
+export const configureOutput = (options?: {
+  prefix?: string | PrefixFunction;
+  outputFunction?: OutputFunction;
+  argToStringFunction?: ArgToStringFunction;
+  includeContext?: boolean;
+  contextAbsPath?: boolean;
+}) => {
+  if (options?.prefix !== undefined) config.prefix = options.prefix;
+  if (options?.outputFunction !== undefined)
+    config.outputFunction = options.outputFunction;
+  if (options?.argToStringFunction !== undefined) {
+    config.argToStringFunction = options.argToStringFunction;
+  } else if (options && "argToStringFunction" in options) {
+    // Explicitly set to undefined, reset to default
+    config.argToStringFunction = inspectValue;
+  }
+  if (options?.includeContext !== undefined)
+    config.includeContext = options.includeContext;
+  if (options?.contextAbsPath !== undefined)
+    config.contextAbsPath = options.contextAbsPath;
+};
+
+/**
+ * Format values like ic() would, but return the string instead of printing it
+ */
+export async function format<T extends unknown[]>(...args: T): Promise<string> {
+  const workArgs = [...args] as unknown[];
+
+  let explicitLabel: string | null = null;
+  if (workArgs.length >= 2 && typeof workArgs[0] === "string") {
+    explicitLabel = workArgs.shift() as unknown as string;
+  }
+
+  // Use depth 2 to skip both format() and the getCaller frame
+  const genPos: CallerPos = getCaller(2);
+  const pos = await originalPosition(genPos);
+  if (!pos.fn && genPos.fn) pos.fn = genPos.fn;
+
+  return formatOutput(pos, workArgs, explicitLabel);
+}

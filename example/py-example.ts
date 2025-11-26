@@ -19,10 +19,20 @@ export function example_4(a: number) {
   ic();
 }
 
+export function example_5() {
+  try {
+    // Intentionally trigger an error similar to Python's ZeroDivisionError
+    throw new Error("division by zero");
+  } catch (error) {
+    ic(error);
+  }
+}
+
 example_1();
 example_2();
 example_3();
 example_4(5);
+example_5();
 
 ic(example_1);
 ic(example_4);
