@@ -1,4 +1,9 @@
-import { ic } from "../src/ic";
+import { ic, configureOutput } from "../src/ic";
+
+configureOutput({
+  prefix: "🐍 ",
+  includeContext: true,
+})
 
 export function example_1() {
   ic("Hello from example 1");
