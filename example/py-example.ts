@@ -10,13 +10,17 @@ export function example_2() {
 }
 
 export function example_3() {
-  const data = { a: 1, b: 2 };
+  const data = {
+    a: 1,
+    b: 2,
+  };
   ic(data);
 }
 
 export function example_4(a: number) {
   void a;
   ic();
+  return a + 1;
 }
 
 export function example_5() {

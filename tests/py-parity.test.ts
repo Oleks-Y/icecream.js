@@ -42,6 +42,6 @@ describe("py-example parity", () => {
 
     expect(segments[7]).toMatch(/ic\| example\/py-example\.ts:\d+ in example_4\(\) at \d{2}:\d{2}:\d{2}\.\d{3}/);
 
-    expect(segments[8]).toBe("ic| example_4(10): undefined");
+    expect(segments[8]).toBe("ic| example_4(10): 11");
   });
 });

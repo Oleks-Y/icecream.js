@@ -11,6 +11,16 @@ import type {
 import { getCaller, isNode } from "./stack";
 import { originalPosition } from "./sourcemap";
 import { getCallExpressionArgs } from "./callsite";
+import highlight, { fromJson, type JsonTheme } from "cli-highlight";
+
+const monokaiTheme: JsonTheme = {
+  keyword: "magenta",
+  built_in: "cyan",
+  string: "yellow",
+  number: "green",
+  comment: "gray",
+  function: "blue",
+};
 
 function ts() {
   const now = new Date();
@@ -190,7 +200,7 @@ function formatOutput(
     : "";
 
   if (workArgs.length === 0) {
-    return `${prefix}${formatNoArgLocation(pos, pos.fn)}`;
+    return `${prefix}${applyHighlight(formatNoArgLocation(pos, pos.fn))}`
   }
 
   const labels = resolveExpressionLabels(
@@ -204,7 +214,13 @@ function formatOutput(
     const valueString = config.argToStringFunction(value);
     return formatEntry(label, valueString);
   });
-  return `${prefix}${contextPart}${entries.join(", ")}`;
+  return `${prefix}${applyHighlight(`${contextPart}${entries.join(", ")}`)}`
+}
+
+function applyHighlight(input: string): string {
+  return highlight(input, {
+    theme: fromJson(monokaiTheme),
+  });
 }
 
 /**

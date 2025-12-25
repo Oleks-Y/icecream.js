@@ -55,6 +55,7 @@
     "@babel/parser": "^7.28.5",
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
+    "cli-highlight": "^2.1.11",
     "source-map-js": "^1.2.1"
   }
 }
