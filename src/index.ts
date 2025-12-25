@@ -1,4 +1,4 @@
-export { ic } from "./ic";
+export { ic, configureOutput, disable, enable, format } from "./ic";
 export type {
   CallerPos,
   OriginalPos,

@@ -16,7 +16,7 @@ function tryDecodeDataUrl(dataUrl: string): RawSourceMap | null {
       dataUrl.trim(),
     );
     if (!m) return null;
-    const json = Buffer.from(m[1], "base64").toString("utf-8");
+    const json = Buffer.from(m[1] as any, "base64").toString("utf-8");
     return JSON.parse(json) as RawSourceMap;
   } catch {
     return null;
@@ -51,7 +51,7 @@ function resolveMapUrlOrInline(fileUrlOrPath: string): {
     /\/\*# sourceMappingURL=(.+)\s*\*\/\s*$/m.exec(text);
   if (!m) return { inlineMap: null, mapUrl: null };
 
-  const val = m[1].trim();
+  const val = m[1]!.trim();
 
   if (/^data:application\/json/i.test(val)) {
     const inline = tryDecodeDataUrl(val);
@@ -120,7 +120,6 @@ export function originalPosition(pos: CallerPos): OriginalPos {
     column: pos.col,
     bias: SourceMapConsumer.GREATEST_LOWER_BOUND,
   });
-
   return {
     file: mapped.source ?? pos.file,
     line: mapped.line ?? pos.line,

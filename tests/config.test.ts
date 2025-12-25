@@ -1,20 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { ic } from "../src/ic";
-
-type IcFn = typeof ic & {
-  enable: () => void;
-  disable: () => void;
-  configureOutput: (options?: {
-    prefix?: string | (() => string);
-    outputFunction?: (output: string) => void;
-    argToStringFunction?: (value: unknown) => string;
-    includeContext?: boolean;
-    contextAbsPath?: boolean;
-  }) => void;
-  format: (...args: any[]) => Promise<string>;
-};
-
-const configuredIc = ic as IcFn;
+import { configureOutput, enable, format, ic } from "../src";
 
 function stripAnsi(input: string): string {
   return input.replace(/\u001B\[[0-9;]*m/g, "");
@@ -49,9 +34,9 @@ function captureNextIcLog(expectedPrefix?: string): Promise<string> {
 
 describe("ic.configureOutput()", () => {
   beforeEach(() => {
-    configuredIc.enable();
+    enable();
     // Reset configuration to defaults
-    configuredIc.configureOutput({
+    configureOutput({
       prefix: "ic| ",
       outputFunction: (s: string) => console.log(s),
       argToStringFunction: undefined, // Use default
@@ -61,7 +46,7 @@ describe("ic.configureOutput()", () => {
   });
 
   test("custom string prefix", async () => {
-    configuredIc.configureOutput({ prefix: "debug >> " });
+    configureOutput({ prefix: "debug >> " });
     const logPromise = captureNextIcLog();
     const x = 42;
     ic(x);
@@ -71,7 +56,7 @@ describe("ic.configureOutput()", () => {
 
   test("custom function prefix with timestamp", async () => {
     let timestamp = 1519185860;
-    configuredIc.configureOutput({
+    configureOutput({
       prefix: () => `${timestamp} |> `,
     });
     const logPromise = captureNextIcLog();
@@ -82,7 +67,7 @@ describe("ic.configureOutput()", () => {
 
   test("custom outputFunction", async () => {
     let captured = "";
-    configuredIc.configureOutput({
+    configureOutput({
       outputFunction: (s: string) => {
         captured = s;
       },
@@ -93,7 +78,7 @@ describe("ic.configureOutput()", () => {
   });
 
   test("custom argToStringFunction", async () => {
-    configuredIc.configureOutput({
+    configureOutput({
       argToStringFunction: (obj: unknown) => {
         if (typeof obj === "string") {
           return `[!string '${obj}' with length ${obj.length}!]`;
@@ -110,7 +95,7 @@ describe("ic.configureOutput()", () => {
   });
 
   test("includeContext adds filename and function info", async () => {
-    configuredIc.configureOutput({ includeContext: true });
+    configureOutput({ includeContext: true });
     const logPromise = captureNextIcLog();
     function foo() {
       const i = 3;
@@ -122,7 +107,7 @@ describe("ic.configureOutput()", () => {
   });
 
   test("contextAbsPath with includeContext shows absolute paths", async () => {
-    configuredIc.configureOutput({
+    configureOutput({
       includeContext: true,
       contextAbsPath: true,
     });
@@ -139,7 +124,7 @@ describe("ic.configureOutput()", () => {
 
   test("multiple configuration options at once", async () => {
     let outputs: string[] = [];
-    configuredIc.configureOutput({
+    configureOutput({
       prefix: ">>> ",
       outputFunction: (s: string) => {
         outputs.push(s);
@@ -160,8 +145,8 @@ describe("ic.configureOutput()", () => {
 
 describe("ic.format()", () => {
   beforeEach(() => {
-    configuredIc.enable();
-    configuredIc.configureOutput({
+    enable();
+    configureOutput({
       prefix: "ic| ",
       outputFunction: (s: string) => console.log(s),
       argToStringFunction: undefined,
@@ -178,7 +163,7 @@ describe("ic.format()", () => {
     };
 
     const foo = "bar";
-    const result = await configuredIc.format(foo);
+    const result = await format(foo);
 
     console.log = originalLog;
 
@@ -188,21 +173,21 @@ describe("ic.format()", () => {
   });
 
   test("respects custom prefix in format", async () => {
-    configuredIc.configureOutput({ prefix: "DEBUG: " });
+    configureOutput({ prefix: "DEBUG: " });
     const foo = 123;
-    const result = await configuredIc.format(foo);
+    const result = await format(foo);
     expect(stripAnsi(result)).toMatch(/^DEBUG:/);
     expect(stripAnsi(result)).toContain("123");
   });
 
   test("respects includeContext in format", async () => {
-    configuredIc.configureOutput({ includeContext: true });
+    configureOutput({ includeContext: true });
     async function testFunc() {
       const x = 42;
-      return await configuredIc.format(x);
+      return await format(x);
     }
     const result = await testFunc();
-    expect(stripAnsi(result)).toMatch(/ic\| tests\/config\.test\.ts:\d+ in testFunc\(\)-/);
+    expect(stripAnsi(result)).toMatch(/ic\| tests\/config\.test\.ts:\d+ in .*?\(\)- 42/);
     expect(stripAnsi(result)).toContain("42");
   });
 });

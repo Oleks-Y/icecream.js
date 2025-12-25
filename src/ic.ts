@@ -254,17 +254,17 @@ export function ic<T extends unknown[]>(
   return ret;
 }
 
-(ic as any).enable = () => {
+export const enable = () => {
   enabled = true;
 };
-(ic as any).disable = () => {
+export const disable = () => {
   enabled = false;
 };
 
 /**
  * Configure ic()'s output behavior
  */
-(ic as any).configureOutput = (options?: {
+export const configureOutput = (options?: {
   prefix?: string | PrefixFunction;
   outputFunction?: OutputFunction;
   argToStringFunction?: ArgToStringFunction;
@@ -289,7 +289,7 @@ export function ic<T extends unknown[]>(
 /**
  * Format values like ic() would, but return the string instead of printing it
  */
-async function format<T extends unknown[]>(...args: T): Promise<string> {
+export async function format<T extends unknown[]>(...args: T): Promise<string> {
   const workArgs = [...args] as unknown[];
 
   let explicitLabel: string | null = null;
@@ -304,5 +304,3 @@ async function format<T extends unknown[]>(...args: T): Promise<string> {
 
   return formatOutput(pos, workArgs, explicitLabel);
 }
-
-(ic as any).format = format;
