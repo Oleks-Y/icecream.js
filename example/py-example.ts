@@ -37,3 +37,6 @@ example_5();
 ic(example_1);
 ic(example_4);
 ic(example_4(10));
+
+// ic("logBeforeException")
+// throw new Error("Hi! Fuck you!")

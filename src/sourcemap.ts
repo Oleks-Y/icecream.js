@@ -1,16 +1,19 @@
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { CallerPos, OriginalPos } from "./types";
 import { isNode } from "./stack";
 import { SourceMapConsumer } from "source-map-js";
 import type { RawSourceMap } from "source-map-js";
 
-const mapJsonCache = new Map<string, Promise<RawSourceMap | null>>();
-const consumerCache = new Map<string, Promise<SourceMapConsumer | null>>();
+const mapJsonCache = new Map<string, RawSourceMap | null>();
+const consumerCache = new Map<string, SourceMapConsumer | null>();
 
 function tryDecodeDataUrl(dataUrl: string): RawSourceMap | null {
   // data:application/json;base64,XXXX
   try {
     const m = /^data:application\/json(?:;charset=[^;]+)?;base64,(.+)$/i.exec(
-      dataUrl.trim()
+      dataUrl.trim(),
     );
     if (!m) return null;
     const json = Buffer.from(m[1], "base64").toString("utf-8");
@@ -20,48 +23,28 @@ function tryDecodeDataUrl(dataUrl: string): RawSourceMap | null {
   }
 }
 
-async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
-  return await res.text();
-}
-
-async function readNodeText(pathOrUrl: string): Promise<string> {
-  // If it's http(s), use fetch; otherwise use fs
-  if (/^https?:\/\//i.test(pathOrUrl)) {
-    return fetchText(pathOrUrl);
-  }
-  // file: URL → convert to path
-  let fsPath = pathOrUrl;
-  if (/^file:\/\//i.test(pathOrUrl)) {
-    const { fileURLToPath } = await import("node:url");
-    fsPath = fileURLToPath(pathOrUrl);
-  }
-  const fs = await import("node:fs/promises");
-  return fs.readFile(fsPath, "utf-8");
+function readNodeText(fsPath: string): string {
+  return fs.readFileSync(fsPath, "utf-8");
 }
 
 function joinUrl(base: string, relative: string): string {
   try {
     return new URL(relative, base).toString();
   } catch {
-    // Fallback
     if (base.startsWith("http")) {
       const slash = base.lastIndexOf("/");
       return base.slice(0, slash + 1) + relative;
     }
-    return relative; // Node path will be resolved separately
+    return relative;
   }
 }
 
-async function resolveMapUrlOrInline(fileUrlOrPath: string): Promise<{
+function resolveMapUrlOrInline(fileUrlOrPath: string): {
   inlineMap: RawSourceMap | null;
   mapUrl: string | null;
-}> {
+} {
   // Read the generated file’s trailing sourceMappingURL
-  const text = isNode
-    ? await readNodeText(fileUrlOrPath)
-    : await fetchText(fileUrlOrPath);
+  const text = readNodeText(fileUrlOrPath);
 
   const m =
     /\/\/# sourceMappingURL=(.+)\s*$/m.exec(text) ||
@@ -86,10 +69,8 @@ async function resolveMapUrlOrInline(fileUrlOrPath: string): Promise<{
   }
 
   if (isNode) {
-    const path = await import("node:path");
     let basePath = fileUrlOrPath;
     if (/^file:\/\//i.test(fileUrlOrPath)) {
-      const { fileURLToPath } = await import("node:url");
       basePath = fileURLToPath(fileUrlOrPath);
     }
     const dir = path.dirname(basePath);
@@ -100,53 +81,38 @@ async function resolveMapUrlOrInline(fileUrlOrPath: string): Promise<{
   return { inlineMap: null, mapUrl: val };
 }
 
-async function loadMapJson(
-  fileUrlOrPath: string
-): Promise<RawSourceMap | null> {
+function loadMapJson(fileUrlOrPath: string): RawSourceMap | null {
   if (mapJsonCache.has(fileUrlOrPath)) return mapJsonCache.get(fileUrlOrPath)!;
 
-  const promise = (async () => {
-    try {
-      const { inlineMap, mapUrl } = await resolveMapUrlOrInline(fileUrlOrPath);
-      if (inlineMap) return inlineMap;
-      if (!mapUrl) return null;
+  try {
+    const { inlineMap, mapUrl } = resolveMapUrlOrInline(fileUrlOrPath);
+    if (inlineMap) return inlineMap;
+    if (!mapUrl) return null;
 
-      if (isNode && !/^https?:\/\//i.test(mapUrl)) {
-        const txt = await readNodeText(mapUrl);
-        return JSON.parse(txt) as RawSourceMap;
-      } else {
-        const txt = await fetchText(mapUrl);
-        return JSON.parse(txt) as RawSourceMap;
-      }
-    } catch {
-      return null;
-    }
-  })();
-
-  mapJsonCache.set(fileUrlOrPath, promise);
-  return promise;
+    const txt = readNodeText(mapUrl);
+    const sourceMap = JSON.parse(txt) as RawSourceMap;
+    mapJsonCache.set(fileUrlOrPath, sourceMap);
+    return sourceMap;
+  } catch {
+    return null;
+  }
 }
 
-async function getConsumer(
-  fileUrlOrPath: string
-): Promise<SourceMapConsumer | null> {
+function getConsumer(fileUrlOrPath: string): SourceMapConsumer | null {
   if (consumerCache.has(fileUrlOrPath))
     return consumerCache.get(fileUrlOrPath)!;
+  const mapJson = loadMapJson(fileUrlOrPath);
 
-  const promise = (async () => {
-    const mapJson = await loadMapJson(fileUrlOrPath);
-    if (!mapJson) return null;
-    // SourceMapConsumer.fromObject is available in source-map-js
-    return await new SourceMapConsumer(mapJson as any);
-  })();
+  if (!mapJson) return null;
 
-  consumerCache.set(fileUrlOrPath, promise);
-  return promise;
+  const consumer = new SourceMapConsumer(mapJson as any);
+  consumerCache.set(fileUrlOrPath, consumer);
+  return consumer;
 }
 
-export async function originalPosition(pos: CallerPos): Promise<OriginalPos> {
+export function originalPosition(pos: CallerPos): OriginalPos {
   if (!pos.file || !pos.line || !pos.col) return pos;
-  const consumer = await getConsumer(pos.file);
+  const consumer = getConsumer(pos.file);
   if (!consumer) return pos;
 
   const mapped = consumer.originalPositionFor({

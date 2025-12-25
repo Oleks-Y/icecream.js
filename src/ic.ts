@@ -43,7 +43,7 @@ function inspectValue(v: unknown): string {
         }
         return val;
       },
-      2
+      2,
     );
   } catch {
     try {
@@ -122,11 +122,11 @@ function formatEntry(label: string | null, value: string): string {
   return label ?? value;
 }
 
-async function resolveExpressionLabels(
+function resolveExpressionLabels(
   pos: OriginalPos,
   valueCount: number,
-  skipFirst: boolean
-): Promise<(string | null)[]> {
+  skipFirst: boolean,
+): Array<string | null> {
   if (
     !isNode ||
     !pos.file ||
@@ -137,30 +137,24 @@ async function resolveExpressionLabels(
     return new Array(valueCount).fill(null);
   }
   const columns = [pos.col, pos.col - 1, pos.col + 1].filter(
-    (col): col is number => typeof col === "number" && col >= 0
+    (col): col is number => typeof col === "number" && col >= 0,
   );
   let exprs: string[] | null = null;
   for (const column of columns) {
-    exprs = await getCallExpressionArgs(pos.file, pos.line, column);
+    exprs = getCallExpressionArgs(pos.file, pos.line, column);
     if (exprs && exprs.length) break;
   }
   if (!exprs || exprs.length === 0) {
     return new Array(valueCount).fill(null);
   }
   const trimmed = (skipFirst ? exprs.slice(1) : exprs).map(
-    (expr) => normalizeLiteralExpression(expr) || null
+    (expr) => normalizeLiteralExpression(expr) || null,
   );
   const labels: (string | null)[] = [];
   for (let i = 0; i < valueCount; i++) {
     labels.push(trimmed[i] ?? null);
   }
   return labels;
-}
-
-function enqueueLog(task: () => Promise<void> | void) {
-  logQueue = logQueue
-    .then(() => Promise.resolve(task()).catch(() => undefined))
-    .catch(() => undefined);
 }
 
 function formatContext(pos: OriginalPos, fnName?: string): string {
@@ -177,16 +171,18 @@ function formatNoArgLocation(pos: OriginalPos, fnName?: string): string {
     return `${formatContext(pos, fnName)} at ${ts()}`;
   }
   const shortFile = shortenPath(pos.file, config.contextAbsPath);
-  const linePart = pos.line ? `${shortFile || pos.file}:${pos.line}` : shortFile;
+  const linePart = pos.line
+    ? `${shortFile || pos.file}:${pos.line}`
+    : shortFile;
   const fnPart = fnName ?? "<anonymous>";
   return `${linePart ?? "<unknown>"} in ${fnPart}() at ${ts()}`;
 }
 
-async function formatOutput(
+function formatOutput(
   pos: OriginalPos,
   workArgs: unknown[],
-  explicitLabel: string | null
-): Promise<string> {
+  explicitLabel: string | null,
+): string {
   const prefix =
     typeof config.prefix === "function" ? config.prefix() : config.prefix;
   const contextPart = config.includeContext
@@ -197,14 +193,14 @@ async function formatOutput(
     return `${prefix}${formatNoArgLocation(pos, pos.fn)}`;
   }
 
-  const labels = await resolveExpressionLabels(
+  const labels = resolveExpressionLabels(
     pos,
     workArgs.length,
-    Boolean(explicitLabel)
+    Boolean(explicitLabel),
   );
   const entries = workArgs.map((value, idx) => {
     const label =
-      idx === 0 && explicitLabel ? explicitLabel : labels[idx] ?? null;
+      idx === 0 && explicitLabel ? explicitLabel : (labels[idx] ?? null);
     const valueString = config.argToStringFunction(value);
     return formatEntry(label, valueString);
   });
@@ -228,16 +224,16 @@ export function ic<T extends unknown[]>(
     explicitLabel = workArgs.shift() as unknown as string;
   }
 
-  const ret = (workArgs.length === 1 ? (workArgs[0] as any) : (workArgs as any)) as any;
+  const ret = (
+    workArgs.length === 1 ? (workArgs[0] as any) : (workArgs as any)
+  ) as any;
 
   const genPos: CallerPos = getCaller(1);
 
-  enqueueLog(async () => {
-    const pos = await originalPosition(genPos);
-    if (!pos.fn && genPos.fn) pos.fn = genPos.fn;
-    const output = await formatOutput(pos, workArgs, explicitLabel);
-    config.outputFunction(output);
-  });
+  const pos = originalPosition(genPos);
+  if (!pos.fn && genPos.fn) pos.fn = genPos.fn;
+  const output = formatOutput(pos, workArgs, explicitLabel);
+  config.outputFunction(output);
 
   return ret;
 }
