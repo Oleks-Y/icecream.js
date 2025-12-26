@@ -45,16 +45,17 @@
     "access": "public"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.5",
-    "@babel/parser": "^7.28.5",
-    "@babel/traverse": "^7.28.5",
-    "@babel/types": "^7.28.5",
     "@types/bun": "latest",
     "@types/node": "^24.10.1",
     "tsup": "^8.1.0",
     "typescript": "^5.6.2"
   },
   "dependencies": {
+    "@babel/core": "^7.28.5",
+    "@babel/parser": "^7.28.5",
+    "@babel/traverse": "^7.28.5",
+    "@babel/types": "^7.28.5",
+    "cli-highlight": "^2.1.11",
     "source-map-js": "^1.2.1"
   }
 }
